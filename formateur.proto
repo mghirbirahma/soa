@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package formateur;
+
+
+message Formateur {
+  string id = 1;
+  string nom = 2;
+  string description = 3;
+
+}
+
+
+
+message GetFormateurRequest {
+  string formateur_id = 1;
+}
+
+message GetFormateurResponse {
+    Formateur formateur = 1;
+}
+
+message SearchFormateursRequest {
+  string query = 1;
+}
+
+message SearchFormateursResponse {
+  repeated Formateur formateurs = 1;
+}
+
+message CreateFormateurRequest {
+  string formateur_id = 1;
+  string nom = 2;
+  string description = 3;
+}
+
+message CreateFormateurResponse {
+    Formateur formateur = 1;
+}
+
+service FormateurService {
+  rpc GetFormateur(GetFormateurRequest) returns (GetFormateurResponse);
+  rpc SearchFormateurs(SearchFormateursRequest) returns (SearchFormateursResponse);
+  rpc CreateFormateur(CreateFormateurRequest) returns (CreateFormateurResponse);
+}

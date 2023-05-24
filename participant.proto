@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package participant;
+
+
+message Participant {
+  string id = 1;
+  string nom = 2;
+  string description = 3;
+
+}
+
+
+
+message GetParticipantRequest {
+  string participant_id = 1;
+}
+
+message GetParticipantResponse {
+    Participant participant = 1;
+}
+
+message SearchParticipantsRequest {
+  string query = 1;
+}
+
+message SearchParticipantsResponse {
+  repeated Participant participants = 1;
+}
+
+message CreateParticipantRequest {
+  string participant_id = 1;
+  string nom = 2;
+  string description = 3;
+}
+
+message CreateParticipantResponse {
+    Participant participant = 1;
+}
+
+service ParticipantService {
+  rpc GetParticipant(GetParticipantRequest) returns (GetParticipantResponse);
+  rpc SearchParticipants(SearchParticipantsRequest) returns (SearchParticipantsResponse);
+  rpc CreateParticipant(CreateParticipantRequest) returns (CreateParticipantResponse);
+}
