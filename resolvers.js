@@ -1,146 +1,174 @@
+const sqlite3 = require('sqlite3').verbose();
+
 const grpc = require('@grpc/grpc-js');
 const protoLoader = require('@grpc/proto-loader');
 
-const formateurProtoPath = 'formateur.proto';
-const formationProtoPath = 'formation.proto';
-const participantProtoPath = 'participant.proto';
 
-const formateurProtoDefinition = protoLoader.loadSync(formateurProtoPath, {
+const foodProtoPath = 'food.proto';
+const orderProtoPath = 'order.proto';
+const foodProtoDefinition = protoLoader.loadSync(foodProtoPath, {
   keepCase: true,
   longs: String,
   enums: String,
   defaults: true,
   oneofs: true,
 });
-
-const formationProtoDefinition = protoLoader.loadSync(formationProtoPath, {
+const orderProtoDefinition = protoLoader.loadSync(orderProtoPath, {
   keepCase: true,
   longs: String,
   enums: String,
   defaults: true,
   oneofs: true,
 });
+const foodProto = grpc.loadPackageDefinition(foodProtoDefinition).food;
+const orderProto = grpc.loadPackageDefinition(orderProtoDefinition).order;
+const clientFoods = new foodProto.FoodService('localhost:50051', grpc.credentials.createInsecure());
+const clientOrders = new orderProto.OrderService('localhost:50052', grpc.credentials.createInsecure());
 
-const participantProtoDefinition = protoLoader.loadSync(participantProtoPath, {
-  keepCase: true,
-  longs: String,
-  enums: String,
-  defaults: true,
-  oneofs: true,
-});
+const db = new sqlite3.Database('./database.db');
 
-const formateurProto = grpc.loadPackageDefinition(formateurProtoDefinition).formateur;
-const formationProto = grpc.loadPackageDefinition(formationProtoDefinition).formation;
-const participantProto = grpc.loadPackageDefinition(participantProtoDefinition).participant;
+db.run(`
+  CREATE TABLE IF NOT EXISTS foods (
+    id INTEGER PRIMARY KEY,
+    title TEXT,
+    description TEXT
+  )
+`);
 
-const clientFormateurs = new formateurProto.FormateurService('localhost:50051', grpc.credentials.createInsecure());
-const clientFormations = new formationProto.FormationService('localhost:50052', grpc.credentials.createInsecure());
-const clientParticipants = new participantProto.ParticipantService('localhost:50053', grpc.credentials.createInsecure());
+db.run(`
+  CREATE TABLE IF NOT EXISTS orders (
+    id INTEGER PRIMARY KEY,
+    title TEXT,
+    description TEXT
+  )
+`);
+
 
 const resolvers = {
   Query: {
-    formation: (_, { id }) => {
+    order: (_, { id }) => {
       return new Promise((resolve, reject) => {
-        clientFormations.getFormation({ formationId: id }, (err, response) => {
+        db.get('SELECT * FROM orders WHERE id = ?', [id], (err, row) => {
           if (err) {
             reject(err);
+          } else if (row) {
+            resolve(row);
           } else {
-            resolve(response.formation);
+            resolve(null);
           }
         });
       });
     },
-    formations: () => {
+    orders: () => {
       return new Promise((resolve, reject) => {
-        clientFormations.searchFormations({}, (err, response) => {
+        db.all('SELECT * FROM orders', (err, rows) => {
           if (err) {
             reject(err);
           } else {
-            resolve(response.formations);
+            resolve(rows);
           }
         });
       });
     },
-    formateur: (_, { id }) => {
+    food: (_, { id }) => {
       return new Promise((resolve, reject) => {
-        clientFormateurs.getFormateur({ formateurId: id }, (err, response) => {
+        db.get('SELECT * FROM foods WHERE id = ?', [id], (err, row) => {
           if (err) {
             reject(err);
+          } else if (row) {
+            resolve(row);
           } else {
-            resolve(response.formateur);
+            resolve(null);
           }
         });
       });
     },
-    formateurs: () => {
+    foods: () => {
       return new Promise((resolve, reject) => {
-        clientFormateurs.searchFormateurs({}, (err, response) => {
+        db.all('SELECT * FROM foods', (err, rows) => {
           if (err) {
             reject(err);
           } else {
-            resolve(response.formateurs);
+            resolve(rows);
           }
         });
       });
     },
-    participant: (_, { id }) => {
+},
+Mutation: {
+    addOrder: (_, { id,title, description }) => {
       return new Promise((resolve, reject) => {
-        clientParticipants.getParticipant({ participantId: id }, (err, response) => {
+        db.run('INSERT INTO orders (id,title, description) VALUES (?, ?, ?)', [id,title, description], function (err) {
           if (err) {
             reject(err);
           } else {
-            resolve(response.participant);
+            resolve({ id, title, description });
           }
         });
       });
     },
-    participants: () => {
+    addFood: (_, { id,title, description }) => {
       return new Promise((resolve, reject) => {
-        clientParticipants.searchParticipants({}, (err, response) => {
+        db.run('INSERT INTO foods (title, description) VALUES (?, ?)', [title, description], function (err) {
           if (err) {
             reject(err);
           } else {
-            resolve(response.participants);
+            resolve({ title, description });
           }
         });
       });
     },
-  },
-  Mutation: {
-    createFormateur: (_, { id, nom, description }) => {
+    updateFood: (_, { id, title, description }) => {
       return new Promise((resolve, reject) => {
-        clientFormateurs.createFormateur({ formateur_id: id, nom: nom, description: description }, (err, response) => {
+        db.run('UPDATE foods SET title = ?, description = ? WHERE id = ?', [title, description, id], function (err) {
           if (err) {
             reject(err);
+          } else if (this.changes === 0) {
+            reject(new Error('Food not found'));
           } else {
-            resolve(response.formateur);
+            resolve({ id, title, description });
           }
         });
       });
     },
-    createFormation: (_, { id, title, description }) => {
+    deleteFood: (_, { id }) => {
       return new Promise((resolve, reject) => {
-        clientFormations.createFormation({ formation_id: id, title: title, description: description }, (err, response) => {
+        db.run('DELETE FROM foods WHERE id = ?', [id], function (err) {
           if (err) {
             reject(err);
+          } else if (this.changes === 0) {
+            reject(new Error('Food not found'));
           } else {
-            resolve(response.formation);
+            resolve(true);
           }
         });
       });
     },
-    createParticipant: (_, { id, nom, description }) => {
+    updateOrder: (_, { id, title, description }) => {
       return new Promise((resolve, reject) => {
-        clientParticipants.createParticipant({ participant_id: id, nom: nom, description: description }, (err, response) => {
+        db.run('UPDATE orders SET title = ?, description = ? WHERE id = ?', [title, description, id], function (err) {
           if (err) {
             reject(err);
+          } else if (this.changes === 0) {
+            reject(new Error('Order not found'));
           } else {
-            resolve(response.participant);
+            resolve({ id, title, description });
           }
         });
       });
     },
+    deleteOrder: (_, { id }) => {
+      return new Promise((resolve, reject) => {
+        db.run('DELETE FROM orders WHERE id = ?', [id], function (err) {
+          if (err) {
+            reject(err);
+          } else if (this.changes === 0) {
+            reject(new Error('Order not found'));
+          } else {
+            resolve(true);
+          }
+        });
+      });}
   },
 };
-
 module.exports = resolvers;

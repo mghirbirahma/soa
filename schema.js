@@ -1,39 +1,32 @@
 const { gql } = require('@apollo/server');
 
 const typeDefs = `#graphql
-const typeDefs = gql
-  type Formateur {
+  type Food {
     id: String!
-    nom: String!
+    title: String!
     description: String!
   }
 
-  type Formation {
+  type Order {
     id: String!
-    titre: String!
-    description: String!
-  }
-
-  type Participant {
-    id: String!
-    nom: String!
+    title: String!
     description: String!
   }
 
   type Query {
-    formateur(id: String!): Formateur
-    formateurs: [Formateur]
-    formation(id: String!): Formation
-    formations: [Formation]
-    participant(id: String!): Participant
-    participants: [Participant]
+    food(id: String!): Food
+    foods: [Food]
+    order(id: String!): Order
+    orders: [Order]
   }
-
   type Mutation {
-    createFormateur(id: String!, nom: String!, description: String!): Formateur
-    createFormation(id: String!, titre: String!, description: String!): Formation
-    createParticipant(id: String!, nom: String!, description: String!): Participant
+    addFood(id: String!, title: String!, description:String!): Food
+    addOrder(id: String!, title: String!, description:String!): Order
+    deleteFood(id: String!): Boolean
+    updateFood(id: String!, title: String!, description: String!): Food
+    updateOrder(id: String!, title: String!, description: String!): Order
+    deleteOrder(id: String!): Boolean
   }
 `;
 
-module.exports = typeDefs;
+module.exports = typeDefs

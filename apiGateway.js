@@ -1,14 +1,13 @@
 const express = require('express');
-const { ApolloServer } = require('@apollo/server-express');
-const { ApolloServerPluginLandingPageGraphQLPlayground } = require('apollo-server-core');
+const { ApolloServer } = require('@apollo/server');
+const { expressMiddleware } = require('@apollo/server/express4');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const grpc = require('@grpc/grpc-js');
 const protoLoader = require('@grpc/proto-loader');
 
-const formateurProtoPath = 'formateur.proto';
-const formationProtoPath = 'formation.proto';
-const participantProtoPath = 'participant.proto';
+const foodProtoPath = 'food.proto';
+const orderProtoPath = 'order.proto';
 
 const resolvers = require('./resolvers');
 const typeDefs = require('./schema');
@@ -16,147 +15,155 @@ const typeDefs = require('./schema');
 const app = express();
 app.use(bodyParser.json());
 
-const formateurProtoDefinition = protoLoader.loadSync(formateurProtoPath, {
+const foodProtoDefinition = protoLoader.loadSync(foodProtoPath, {
   keepCase: true,
   longs: String,
   enums: String,
   defaults: true,
   oneofs: true,
 });
-const formationProtoDefinition = protoLoader.loadSync(formationProtoPath, {
+const orderProtoDefinition = protoLoader.loadSync(orderProtoPath, {
   keepCase: true,
   longs: String,
   enums: String,
   defaults: true,
   oneofs: true,
 });
-const participantProtoDefinition = protoLoader.loadSync(participantProtoPath, {
-  keepCase: true,
-  longs: String,
-  enums: String,
-  defaults: true,
-  oneofs: true,
-});
-const formateurProto = grpc.loadPackageDefinition(formateurProtoDefinition).formateur;
-const formationProto = grpc.loadPackageDefinition(formationProtoDefinition).formation;
-const participantProto = grpc.loadPackageDefinition(participantProtoDefinition).participant;
-const clientFormateurs = new formateurProto.FormateurService('localhost:50051', grpc.credentials.createInsecure());
-const clientFormations = new formationProto.FormationService('localhost:50052', grpc.credentials.createInsecure());
-const clientParticipants = new participantProto.ParticipantService('localhost:50053', grpc.credentials.createInsecure());
+const foodProto = grpc.loadPackageDefinition(foodProtoDefinition).food;
+const orderProto = grpc.loadPackageDefinition(orderProtoDefinition).order;
+const clientFoods = new foodProto.FoodService(
+  'localhost:50051',
+  grpc.credentials.createInsecure()
+);
+const clientOrders = new orderProto.OrderService(
+  'localhost:50052',
+  grpc.credentials.createInsecure()
+);
 
-const server = new ApolloServer({
-  typeDefs,
-  resolvers,
-  plugins: [ApolloServerPluginLandingPageGraphQLPlayground()],
-});
+const server = new ApolloServer({ typeDefs, resolvers });
 
 server.start().then(() => {
-  app.use(cors());
-  app.use(bodyParser.json());
-  app.use(server.getMiddleware());
+  app.use(cors(), bodyParser.json(), expressMiddleware(server));
 });
 
-app.get('/formateurs', (req, res) => {
-  clientFormateurs.searchFormateurs({}, (err, response) => {
+app.get('/foods', (req, res) => {
+  clientFoods.searchFoods({}, (err, response) => {
     if (err) {
       res.status(500).send(err);
     } else {
-      res.json(response.formateurs);
+      res.json(response.foods);
     }
   });
 });
 
-app.post('/formateur', (req, res) => {
-  const { id, nom, description } = req.body;
-  clientFormateurs.createFormateur(
-    { formateur_id: id, nom: nom, description: description },
-    (err, response) => {
-      if (err) {
-        res.status(500).send(err);
-      } else {
-        res.json(response.formateur);
-      }
-    }
-  );
-});
-
-app.get('/formateurs/:id', (req, res) => {
-  const id = req.params.id;
-  clientFormateurs.getFormateur({ formateurId: id }, (err, response) => {
-    if (err) {
-      res.status(500).send(err);
-    } else {
-      res.json(response.formateur);
-    }
-  });
-});
-
-app.get('/formations', (req, res) => {
-  clientFormations.searchFormations({}, (err, response) => {
-    if (err) {
-      res.status(500).send(err);
-    } else {
-      res.json(response.formations);
-    }
-  });
-});
-
-app.post('/formation', (req, res) => {
+app.post('/foods', (req, res) => {
   const { id, title, description } = req.body;
-  clientFormations.createFormation(
-    { formation_id: id, title: title, description: description },
+  clientFoods.createFood(
+    { food_id: id, title: title, description: description },
     (err, response) => {
       if (err) {
         res.status(500).send(err);
       } else {
-        res.json(response.formation);
+        res.json(response.food);
       }
     }
   );
 });
 
-app.get('/formations/:id', (req, res) => {
+app.get('/foods/:id', (req, res) => {
   const id = req.params.id;
-  clientFormations.getFormation({ formationId: id }, (err, response) => {
+  clientFoods.getFood({ foodId: id }, (err, response) => {
     if (err) {
       res.status(500).send(err);
     } else {
-      res.json(response.formation);
+      res.json(response.food);
     }
   });
 });
 
-app.get('/participants', (req, res) => {
-  clientParticipants.searchParticipants({}, (err, response) => {
-    if (err) {
-      res.status(500).send(err);
-    } else {
-      res.json(response.participants);
-    }
-  });
-});
-
-app.post('/participant', (req, res) => {
-  const { id, nom, description } = req.body;
-  clientParticipants.createParticipant(
-    { participant_id: id, nom: nom, description: description },
+app.put('/foods/:id', (req, res) => {
+  const id = req.params.id;
+  const { title, description } = req.body;
+  clientFoods.updateFood(
+    { food_id: id, title: title, description: description },
     (err, response) => {
       if (err) {
         res.status(500).send(err);
       } else {
-        res.json(response.participant);
+        res.json(response.food);
       }
     }
   );
 });
 
-app.get('/participants/:id', (req, res) => {
+app.delete('/foods/:id', (req, res) => {
   const id = req.params.id;
-  clientParticipants.getParticipant({ participantId: id }, (err, response) => {
+  clientFoods.deleteFood({ food_id: id }, (err, response) => {
     if (err) {
       res.status(500).send(err);
     } else {
-      res.json(response.participant);
+      res.json(response);
+    }
+  });
+});
+
+app.get('/orders', (req, res) => {
+  clientOrders.searchOrders({}, (err, response) => {
+    if (err) {
+      res.status(500).send(err);
+    } else {
+      res.json(response.orders);
+    }
+  });
+});
+
+app.post('/orders', (req, res) => {
+  const { id, title, description } = req.body;
+  clientOrders.createOrder(
+    { order_id: id, title: title, description: description },
+    (err, response) => {
+      if (err) {
+        res.status(500).send(err);
+      } else {
+        res.json(response.order);
+      }
+    }
+  );
+});
+
+app.get('/orders/:id', (req, res) => {
+  const id = req.params.id;
+  clientOrders.getOrder({ order_id: id }, (err, response) => {
+    if (err) {
+      res.status(500).send(err);
+    } else {
+      res.json(response.order);
+    }
+  });
+});
+
+app.put('/orders/:id', (req, res) => {
+  const id = req.params.id;
+  const { title, description } = req.body;
+  clientOrders.updateOrder(
+    { order_id: id, title: title, description: description },
+    (err, response) => {
+      if (err) {
+        res.status(500).send(err);
+      } else {
+        res.json(response.order);
+      }
+    }
+  );
+});
+
+app.delete('/orders/:id', (req, res) => {
+  const id = req.params.id;
+  clientOrders.deleteOrder({ order_id: id }, (err, response) => {
+    if (err) {
+      res.status(500).send(err);
+    } else {
+      res.json(response);
     }
   });
 });
